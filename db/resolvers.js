@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Product = require('../models/Product');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -16,6 +17,21 @@ const resolvers = {
         getUser: async (_, {token}) => {
             const userId =  await jwt.verify(token, process.env.SECRET);
             return userId;
+        },
+        getProducts: async () => {
+            try {
+                const products = await Product.find({});
+                return products;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getProduct: async (_, {id}) => {
+            const product = await Product.findById(id);
+            // If Product doesn´t exist
+            if(!product) throw new Error('Product doesn´t exist!');
+
+            return product;
         }
     },
     Mutation: {
@@ -52,6 +68,33 @@ const resolvers = {
             return {
                 token: createToken(userExists, process.env.SECRET, '24h')
             }
+        },
+        newProduct: async (_, {input}) => {
+            try {
+                const product = new Product(input);
+                // Save in DB
+                const result = await product.save();
+                return result;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        updateProduct: async (_, {id, input}) => {
+            let product = await Product.findById(id);
+            // If doesn´t exixt
+            if(!product) throw new Error('Product doesn´t exist!');
+            // Save in DB
+            product = await Product.findOneAndUpdate({_id: id}, input, {new:true});
+            return product;
+        },
+        deleteProduct: async (_, {id}) => {
+            let product = await Product.findById(id);
+            // If doesn´t exixst
+            if(!product) throw new Error ('Product doesn´t exist!');
+
+            // Delete from DB
+            await Product.findByIdAndDelete({_id:id});
+            return 'Product deleted sucessfully!';
         }
     }
 }
