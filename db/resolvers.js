@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Client = require('../models/Client');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -32,6 +33,30 @@ const resolvers = {
             if(!product) throw new Error('Product doesn´t exist!');
 
             return product;
+        },
+        getClients: async () => {
+            try {
+                const clients = await Client.find({});
+                return clients;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getClientsSeller: async (_, {}, ctx) => {
+            try {
+                const clients = await Client.find({seller: ctx.user.id.toString()});
+                return clients;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getClient: async (_, {id}, ctx) => {
+            // If Clients exists or not
+            const client = await Client.findById(id);
+            if (!client) throw new Error('Client not found!');
+            // Who created the Client can see it
+            if (client.seller.toString() !== ctx.user.id) throw new Error('Credentials not valid!');
+            return client;
         }
     },
     Mutation: {
@@ -95,6 +120,44 @@ const resolvers = {
             // Delete from DB
             await Product.findByIdAndDelete({_id:id});
             return 'Product deleted sucessfully!';
+        },
+        newClient: async (_,{input}, ctx) => {
+            const {email} = input
+            //  If Client is already registered
+            const client = await Client.findOne({email});
+            if(client) throw new Error('Client already registered!');
+
+            const newClient = new Client(input);
+
+            //  Asign Seller
+            newClient.seller = ctx.user.id;
+            //  Save in DB
+            try {
+                const result = await newClient.save();
+                return result;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        updateClient: async (_, {id, input}, ctx) => {
+            // If Client exixts or not
+            let client = await Client.findById(id);
+            if (!client) throw new Error('Client not found!');
+            // Who created the Client can see it
+            if (client.seller.toString() !== ctx.user.id) throw new Error('Credentials not valid!');
+            // Save Client in DB
+            client = await Client.findOneAndUpdate({_id: id}, input, {new: true})
+            return client;
+        },
+        deleteClient: async (_, {id}, ctx) => {
+            // If Client exixts or not
+            const client = await Client.findById(id);
+            if (!client) throw new Error('Client not found!');
+            // Who created the Client can see it
+            if (client.seller.toString() !== ctx.user.id) throw new Error('Credentials not valid!');
+            // Delete from DB
+            await Client.findOneAndDelete({_id: id});
+            return 'Client deleted!';
         }
     }
 }
